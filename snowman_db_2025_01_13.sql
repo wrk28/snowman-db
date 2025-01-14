@@ -5,7 +5,7 @@
 -- Dumped from database version 16.2
 -- Dumped by pg_dump version 16.2
 
--- Started on 2024-11-29 05:13:13 MSK
+-- Started on 2025-01-14 05:35:43 MSK
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -38,16 +38,6 @@ CREATE TYPE public.ability_level AS ENUM (
 
 
 --
--- TOC entry 874 (class 1247 OID 21040)
--- Name: completion_status; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.completion_status AS ENUM (
-    'Scheduled'
-);
-
-
---
 -- TOC entry 865 (class 1247 OID 21024)
 -- Name: course_type; Type: TYPE; Schema: public; Owner: -
 --
@@ -64,12 +54,15 @@ CREATE TYPE public.course_type AS ENUM (
 --
 
 CREATE TYPE public.invoice_status AS ENUM (
-    'Send'
+    'Sent',
+    'Paid',
+    'Unpaid',
+    'Canceled'
 );
 
 
 --
--- TOC entry 240 (class 1255 OID 21221)
+-- TOC entry 239 (class 1255 OID 21221)
 -- Name: on_booking_delete_fn(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -77,12 +70,14 @@ CREATE FUNCTION public.on_booking_delete_fn() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
+	delete from invoice
+	where booking_id = OLD.booking_id;
 end;
 $$;
 
 
 --
--- TOC entry 239 (class 1255 OID 21220)
+-- TOC entry 240 (class 1255 OID 21220)
 -- Name: on_booking_insert_fn(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -90,6 +85,8 @@ CREATE FUNCTION public.on_booking_insert_fn() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
+	insert into invoice (invoice_status, booking_id)
+	values ('Unpaid', OLD.booking_id);
 end;
 $$;
 
@@ -106,7 +103,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.available_date_time (
     instructor_id integer NOT NULL,
     operating_day_id integer NOT NULL,
-    setting_time_id integer NOT NULL
+    setting_time_id integer NOT NULL,
+    tags json
 );
 
 
@@ -120,16 +118,15 @@ CREATE TABLE public.booking (
     customer_name character varying(50) NOT NULL,
     phone_number character varying(20) NOT NULL,
     days_of_lesson smallint NOT NULL,
-    number_of_people smallint NOT NULL,
-    duration time without time zone NOT NULL,
-    completion_status public.completion_status NOT NULL,
+    number_of_orders smallint NOT NULL,
     ability_level public.ability_level NOT NULL,
     course_id integer NOT NULL,
     slope_id integer NOT NULL,
     country_id integer NOT NULL,
     instructor_id integer,
     operating_day integer NOT NULL,
-    setting_time_id integer NOT NULL
+    setting_time_id integer NOT NULL,
+    created_at timestamp with time zone
 );
 
 
@@ -148,7 +145,7 @@ CREATE SEQUENCE public.booking_booking_id_seq
 
 
 --
--- TOC entry 3759 (class 0 OID 0)
+-- TOC entry 3757 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: booking_booking_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -182,7 +179,7 @@ CREATE SEQUENCE public.country_country_id_seq
 
 
 --
--- TOC entry 3760 (class 0 OID 0)
+-- TOC entry 3758 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: country_country_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -200,7 +197,8 @@ CREATE TABLE public.course (
     course_name character varying(50) NOT NULL,
     course_type public.course_type NOT NULL,
     ability_level public.ability_level NOT NULL,
-    days_of_lesson smallint NOT NULL
+    days_of_lesson smallint NOT NULL,
+    fee integer
 );
 
 
@@ -219,7 +217,7 @@ CREATE SEQUENCE public.course_course_id_seq
 
 
 --
--- TOC entry 3761 (class 0 OID 0)
+-- TOC entry 3759 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: course_course_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -266,7 +264,7 @@ CREATE SEQUENCE public.instructor_instructor_id_seq
 
 
 --
--- TOC entry 3762 (class 0 OID 0)
+-- TOC entry 3760 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: instructor_instructor_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -281,7 +279,7 @@ ALTER SEQUENCE public.instructor_instructor_id_seq OWNED BY public.instructor.in
 
 CREATE TABLE public.invoice (
     invoice_id integer NOT NULL,
-    invoice_status public.invoice_status DEFAULT 'Send'::public.invoice_status,
+    invoice_status public.invoice_status DEFAULT 'Sent'::public.invoice_status,
     booking_id integer
 );
 
@@ -301,7 +299,7 @@ CREATE SEQUENCE public.invoice_invoice_id_seq
 
 
 --
--- TOC entry 3763 (class 0 OID 0)
+-- TOC entry 3761 (class 0 OID 0)
 -- Dependencies: 234
 -- Name: invoice_invoice_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -335,7 +333,7 @@ CREATE SEQUENCE public.operating_day_operating_day_id_seq
 
 
 --
--- TOC entry 3764 (class 0 OID 0)
+-- TOC entry 3762 (class 0 OID 0)
 -- Dependencies: 226
 -- Name: operating_day_operating_day_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -380,7 +378,7 @@ CREATE SEQUENCE public.school_school_id_seq
 
 
 --
--- TOC entry 3765 (class 0 OID 0)
+-- TOC entry 3763 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: school_school_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -414,7 +412,7 @@ CREATE SEQUENCE public.setting_time_setting_time_id_seq
 
 
 --
--- TOC entry 3766 (class 0 OID 0)
+-- TOC entry 3764 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: setting_time_setting_time_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -482,7 +480,7 @@ CREATE SEQUENCE public.slope_slope_id_seq
 
 
 --
--- TOC entry 3767 (class 0 OID 0)
+-- TOC entry 3765 (class 0 OID 0)
 -- Dependencies: 215
 -- Name: slope_slope_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
@@ -491,7 +489,7 @@ ALTER SEQUENCE public.slope_slope_id_seq OWNED BY public.slope.slope_id;
 
 
 --
--- TOC entry 3528 (class 2604 OID 21353)
+-- TOC entry 3525 (class 2604 OID 21353)
 -- Name: booking booking_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -499,7 +497,7 @@ ALTER TABLE ONLY public.booking ALTER COLUMN booking_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 3523 (class 2604 OID 21061)
+-- TOC entry 3520 (class 2604 OID 21061)
 -- Name: country country_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -507,7 +505,7 @@ ALTER TABLE ONLY public.country ALTER COLUMN country_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 3522 (class 2604 OID 21054)
+-- TOC entry 3519 (class 2604 OID 21054)
 -- Name: course course_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -515,7 +513,7 @@ ALTER TABLE ONLY public.course ALTER COLUMN course_id SET DEFAULT nextval('publi
 
 
 --
--- TOC entry 3524 (class 2604 OID 21068)
+-- TOC entry 3521 (class 2604 OID 21068)
 -- Name: instructor instructor_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -523,7 +521,7 @@ ALTER TABLE ONLY public.instructor ALTER COLUMN instructor_id SET DEFAULT nextva
 
 
 --
--- TOC entry 3529 (class 2604 OID 21421)
+-- TOC entry 3526 (class 2604 OID 21421)
 -- Name: invoice invoice_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -531,7 +529,7 @@ ALTER TABLE ONLY public.invoice ALTER COLUMN invoice_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 3527 (class 2604 OID 21098)
+-- TOC entry 3524 (class 2604 OID 21098)
 -- Name: operating_day operating_day_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -539,7 +537,7 @@ ALTER TABLE ONLY public.operating_day ALTER COLUMN operating_day_id SET DEFAULT 
 
 
 --
--- TOC entry 3531 (class 2604 OID 21438)
+-- TOC entry 3528 (class 2604 OID 21438)
 -- Name: school school_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -547,7 +545,7 @@ ALTER TABLE ONLY public.school ALTER COLUMN school_id SET DEFAULT nextval('publi
 
 
 --
--- TOC entry 3526 (class 2604 OID 21076)
+-- TOC entry 3523 (class 2604 OID 21076)
 -- Name: setting_time setting_time_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -555,7 +553,7 @@ ALTER TABLE ONLY public.setting_time ALTER COLUMN setting_time_id SET DEFAULT ne
 
 
 --
--- TOC entry 3521 (class 2604 OID 21047)
+-- TOC entry 3518 (class 2604 OID 21047)
 -- Name: slope slope_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -563,27 +561,27 @@ ALTER TABLE ONLY public.slope ALTER COLUMN slope_id SET DEFAULT nextval('public.
 
 
 --
--- TOC entry 3745 (class 0 OID 21198)
+-- TOC entry 3743 (class 0 OID 21198)
 -- Dependencies: 231
 -- Data for Name: available_date_time; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.available_date_time (instructor_id, operating_day_id, setting_time_id) FROM stdin;
+COPY public.available_date_time (instructor_id, operating_day_id, setting_time_id, tags) FROM stdin;
 \.
 
 
 --
--- TOC entry 3747 (class 0 OID 21350)
+-- TOC entry 3745 (class 0 OID 21350)
 -- Dependencies: 233
 -- Data for Name: booking; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.booking (booking_id, customer_name, phone_number, days_of_lesson, number_of_people, duration, completion_status, ability_level, course_id, slope_id, country_id, instructor_id, operating_day, setting_time_id) FROM stdin;
+COPY public.booking (booking_id, customer_name, phone_number, days_of_lesson, number_of_orders, ability_level, course_id, slope_id, country_id, instructor_id, operating_day, setting_time_id, created_at) FROM stdin;
 \.
 
 
 --
--- TOC entry 3734 (class 0 OID 21058)
+-- TOC entry 3732 (class 0 OID 21058)
 -- Dependencies: 220
 -- Data for Name: country; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -593,17 +591,17 @@ COPY public.country (country_id, country_name) FROM stdin;
 
 
 --
--- TOC entry 3732 (class 0 OID 21051)
+-- TOC entry 3730 (class 0 OID 21051)
 -- Dependencies: 218
 -- Data for Name: course; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.course (course_id, course_name, course_type, ability_level, days_of_lesson) FROM stdin;
+COPY public.course (course_id, course_name, course_type, ability_level, days_of_lesson, fee) FROM stdin;
 \.
 
 
 --
--- TOC entry 3739 (class 0 OID 21079)
+-- TOC entry 3737 (class 0 OID 21079)
 -- Dependencies: 225
 -- Data for Name: course_setting_time; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -613,7 +611,7 @@ COPY public.course_setting_time (course_id, setting_time_id) FROM stdin;
 
 
 --
--- TOC entry 3736 (class 0 OID 21065)
+-- TOC entry 3734 (class 0 OID 21065)
 -- Dependencies: 222
 -- Data for Name: instructor; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -623,7 +621,7 @@ COPY public.instructor (instructor_id, instructor_name, active, ability_level) F
 
 
 --
--- TOC entry 3749 (class 0 OID 21418)
+-- TOC entry 3747 (class 0 OID 21418)
 -- Dependencies: 235
 -- Data for Name: invoice; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -633,7 +631,7 @@ COPY public.invoice (invoice_id, invoice_status, booking_id) FROM stdin;
 
 
 --
--- TOC entry 3741 (class 0 OID 21095)
+-- TOC entry 3739 (class 0 OID 21095)
 -- Dependencies: 227
 -- Data for Name: operating_day; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -643,7 +641,7 @@ COPY public.operating_day (operating_day_id, operating_day) FROM stdin;
 
 
 --
--- TOC entry 3750 (class 0 OID 21432)
+-- TOC entry 3748 (class 0 OID 21432)
 -- Dependencies: 236
 -- Data for Name: school; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -653,7 +651,7 @@ COPY public.school (school_id, school_name) FROM stdin;
 
 
 --
--- TOC entry 3752 (class 0 OID 21444)
+-- TOC entry 3750 (class 0 OID 21444)
 -- Dependencies: 238
 -- Data for Name: school_operating_day; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -663,7 +661,7 @@ COPY public.school_operating_day (school_id, operating_day_id) FROM stdin;
 
 
 --
--- TOC entry 3738 (class 0 OID 21073)
+-- TOC entry 3736 (class 0 OID 21073)
 -- Dependencies: 224
 -- Data for Name: setting_time; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -673,7 +671,7 @@ COPY public.setting_time (setting_time_id, setting_time) FROM stdin;
 
 
 --
--- TOC entry 3730 (class 0 OID 21044)
+-- TOC entry 3728 (class 0 OID 21044)
 -- Dependencies: 216
 -- Data for Name: slope; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -683,7 +681,7 @@ COPY public.slope (slope_id, slope_name, school_id) FROM stdin;
 
 
 --
--- TOC entry 3742 (class 0 OID 21153)
+-- TOC entry 3740 (class 0 OID 21153)
 -- Dependencies: 228
 -- Data for Name: slope_course; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -693,7 +691,7 @@ COPY public.slope_course (slope_id, course_id) FROM stdin;
 
 
 --
--- TOC entry 3743 (class 0 OID 21168)
+-- TOC entry 3741 (class 0 OID 21168)
 -- Dependencies: 229
 -- Data for Name: slope_instructor; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -703,7 +701,7 @@ COPY public.slope_instructor (slope_id, instructor_id) FROM stdin;
 
 
 --
--- TOC entry 3744 (class 0 OID 21183)
+-- TOC entry 3742 (class 0 OID 21183)
 -- Dependencies: 230
 -- Data for Name: slope_operating_day; Type: TABLE DATA; Schema: public; Owner: -
 --
@@ -713,7 +711,7 @@ COPY public.slope_operating_day (slope_id, operating_day_id) FROM stdin;
 
 
 --
--- TOC entry 3768 (class 0 OID 0)
+-- TOC entry 3766 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: booking_booking_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -722,7 +720,7 @@ SELECT pg_catalog.setval('public.booking_booking_id_seq', 1, false);
 
 
 --
--- TOC entry 3769 (class 0 OID 0)
+-- TOC entry 3767 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: country_country_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -731,7 +729,7 @@ SELECT pg_catalog.setval('public.country_country_id_seq', 1, false);
 
 
 --
--- TOC entry 3770 (class 0 OID 0)
+-- TOC entry 3768 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: course_course_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -740,7 +738,7 @@ SELECT pg_catalog.setval('public.course_course_id_seq', 1, false);
 
 
 --
--- TOC entry 3771 (class 0 OID 0)
+-- TOC entry 3769 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: instructor_instructor_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -749,7 +747,7 @@ SELECT pg_catalog.setval('public.instructor_instructor_id_seq', 1, false);
 
 
 --
--- TOC entry 3772 (class 0 OID 0)
+-- TOC entry 3770 (class 0 OID 0)
 -- Dependencies: 234
 -- Name: invoice_invoice_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -758,7 +756,7 @@ SELECT pg_catalog.setval('public.invoice_invoice_id_seq', 1, false);
 
 
 --
--- TOC entry 3773 (class 0 OID 0)
+-- TOC entry 3771 (class 0 OID 0)
 -- Dependencies: 226
 -- Name: operating_day_operating_day_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -767,7 +765,7 @@ SELECT pg_catalog.setval('public.operating_day_operating_day_id_seq', 1, false);
 
 
 --
--- TOC entry 3774 (class 0 OID 0)
+-- TOC entry 3772 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: school_school_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -776,7 +774,7 @@ SELECT pg_catalog.setval('public.school_school_id_seq', 1, false);
 
 
 --
--- TOC entry 3775 (class 0 OID 0)
+-- TOC entry 3773 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: setting_time_setting_time_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -785,7 +783,7 @@ SELECT pg_catalog.setval('public.setting_time_setting_time_id_seq', 1, false);
 
 
 --
--- TOC entry 3776 (class 0 OID 0)
+-- TOC entry 3774 (class 0 OID 0)
 -- Dependencies: 215
 -- Name: slope_slope_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -794,7 +792,7 @@ SELECT pg_catalog.setval('public.slope_slope_id_seq', 1, false);
 
 
 --
--- TOC entry 3553 (class 2606 OID 21202)
+-- TOC entry 3550 (class 2606 OID 21202)
 -- Name: available_date_time available_date_time_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -803,7 +801,7 @@ ALTER TABLE ONLY public.available_date_time
 
 
 --
--- TOC entry 3555 (class 2606 OID 21355)
+-- TOC entry 3552 (class 2606 OID 21355)
 -- Name: booking booking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -812,7 +810,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3537 (class 2606 OID 21063)
+-- TOC entry 3534 (class 2606 OID 21063)
 -- Name: country country_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -821,7 +819,7 @@ ALTER TABLE ONLY public.country
 
 
 --
--- TOC entry 3535 (class 2606 OID 21056)
+-- TOC entry 3532 (class 2606 OID 21056)
 -- Name: course course_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -830,7 +828,7 @@ ALTER TABLE ONLY public.course
 
 
 --
--- TOC entry 3543 (class 2606 OID 21083)
+-- TOC entry 3540 (class 2606 OID 21083)
 -- Name: course_setting_time course_setting_time_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -839,7 +837,7 @@ ALTER TABLE ONLY public.course_setting_time
 
 
 --
--- TOC entry 3539 (class 2606 OID 21071)
+-- TOC entry 3536 (class 2606 OID 21071)
 -- Name: instructor instructor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -848,7 +846,7 @@ ALTER TABLE ONLY public.instructor
 
 
 --
--- TOC entry 3557 (class 2606 OID 21426)
+-- TOC entry 3554 (class 2606 OID 21426)
 -- Name: invoice invoice_booking_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -857,7 +855,7 @@ ALTER TABLE ONLY public.invoice
 
 
 --
--- TOC entry 3559 (class 2606 OID 21424)
+-- TOC entry 3556 (class 2606 OID 21424)
 -- Name: invoice invoice_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -866,7 +864,7 @@ ALTER TABLE ONLY public.invoice
 
 
 --
--- TOC entry 3545 (class 2606 OID 21100)
+-- TOC entry 3542 (class 2606 OID 21100)
 -- Name: operating_day operating_day_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -875,7 +873,7 @@ ALTER TABLE ONLY public.operating_day
 
 
 --
--- TOC entry 3563 (class 2606 OID 21463)
+-- TOC entry 3560 (class 2606 OID 21463)
 -- Name: school_operating_day school_operating_day_pk; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -884,7 +882,7 @@ ALTER TABLE ONLY public.school_operating_day
 
 
 --
--- TOC entry 3561 (class 2606 OID 21443)
+-- TOC entry 3558 (class 2606 OID 21443)
 -- Name: school school_pk; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -893,7 +891,7 @@ ALTER TABLE ONLY public.school
 
 
 --
--- TOC entry 3541 (class 2606 OID 21078)
+-- TOC entry 3538 (class 2606 OID 21078)
 -- Name: setting_time setting_time_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -902,7 +900,7 @@ ALTER TABLE ONLY public.setting_time
 
 
 --
--- TOC entry 3547 (class 2606 OID 21157)
+-- TOC entry 3544 (class 2606 OID 21157)
 -- Name: slope_course slope_course_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -911,7 +909,7 @@ ALTER TABLE ONLY public.slope_course
 
 
 --
--- TOC entry 3549 (class 2606 OID 21172)
+-- TOC entry 3546 (class 2606 OID 21172)
 -- Name: slope_instructor slope_instructor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -920,7 +918,7 @@ ALTER TABLE ONLY public.slope_instructor
 
 
 --
--- TOC entry 3551 (class 2606 OID 21187)
+-- TOC entry 3548 (class 2606 OID 21187)
 -- Name: slope_operating_day slope_operating_day_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -929,7 +927,7 @@ ALTER TABLE ONLY public.slope_operating_day
 
 
 --
--- TOC entry 3533 (class 2606 OID 21049)
+-- TOC entry 3530 (class 2606 OID 21049)
 -- Name: slope slope_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -938,15 +936,23 @@ ALTER TABLE ONLY public.slope
 
 
 --
--- TOC entry 3585 (class 2620 OID 21356)
+-- TOC entry 3582 (class 2620 OID 21728)
+-- Name: booking on_booking_delete_tg; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER on_booking_delete_tg BEFORE DELETE ON public.booking FOR EACH ROW EXECUTE FUNCTION public.on_booking_delete_fn();
+
+
+--
+-- TOC entry 3583 (class 2620 OID 21730)
 -- Name: booking on_booking_insert_tg; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER on_booking_insert_tg BEFORE DELETE ON public.booking FOR EACH ROW EXECUTE FUNCTION public.on_booking_delete_fn();
+CREATE TRIGGER on_booking_insert_tg AFTER INSERT ON public.booking FOR EACH ROW EXECUTE FUNCTION public.on_booking_insert_fn();
 
 
 --
--- TOC entry 3573 (class 2606 OID 21203)
+-- TOC entry 3570 (class 2606 OID 21203)
 -- Name: available_date_time available_date_time_instructor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -955,7 +961,7 @@ ALTER TABLE ONLY public.available_date_time
 
 
 --
--- TOC entry 3574 (class 2606 OID 21208)
+-- TOC entry 3571 (class 2606 OID 21208)
 -- Name: available_date_time available_date_time_operating_day_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -964,7 +970,7 @@ ALTER TABLE ONLY public.available_date_time
 
 
 --
--- TOC entry 3575 (class 2606 OID 21213)
+-- TOC entry 3572 (class 2606 OID 21213)
 -- Name: available_date_time available_date_time_setting_time_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -973,7 +979,7 @@ ALTER TABLE ONLY public.available_date_time
 
 
 --
--- TOC entry 3576 (class 2606 OID 21387)
+-- TOC entry 3573 (class 2606 OID 21387)
 -- Name: booking booking_country_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -982,7 +988,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3577 (class 2606 OID 21392)
+-- TOC entry 3574 (class 2606 OID 21392)
 -- Name: booking booking_course_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -991,7 +997,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3578 (class 2606 OID 21397)
+-- TOC entry 3575 (class 2606 OID 21397)
 -- Name: booking booking_instructor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1000,7 +1006,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3579 (class 2606 OID 21402)
+-- TOC entry 3576 (class 2606 OID 21402)
 -- Name: booking booking_operating_day_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1009,7 +1015,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3580 (class 2606 OID 21407)
+-- TOC entry 3577 (class 2606 OID 21407)
 -- Name: booking booking_setting_time_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1018,7 +1024,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3581 (class 2606 OID 21412)
+-- TOC entry 3578 (class 2606 OID 21412)
 -- Name: booking booking_slope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1027,7 +1033,7 @@ ALTER TABLE ONLY public.booking
 
 
 --
--- TOC entry 3565 (class 2606 OID 21084)
+-- TOC entry 3562 (class 2606 OID 21084)
 -- Name: course_setting_time course_setting_time_course_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1036,7 +1042,7 @@ ALTER TABLE ONLY public.course_setting_time
 
 
 --
--- TOC entry 3566 (class 2606 OID 21089)
+-- TOC entry 3563 (class 2606 OID 21089)
 -- Name: course_setting_time course_setting_time_setting_time_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1045,7 +1051,7 @@ ALTER TABLE ONLY public.course_setting_time
 
 
 --
--- TOC entry 3582 (class 2606 OID 21427)
+-- TOC entry 3579 (class 2606 OID 21427)
 -- Name: invoice invoice_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1054,7 +1060,7 @@ ALTER TABLE ONLY public.invoice
 
 
 --
--- TOC entry 3583 (class 2606 OID 21452)
+-- TOC entry 3580 (class 2606 OID 21452)
 -- Name: school_operating_day school_operating_day_operating_day_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1063,7 +1069,7 @@ ALTER TABLE ONLY public.school_operating_day
 
 
 --
--- TOC entry 3584 (class 2606 OID 21447)
+-- TOC entry 3581 (class 2606 OID 21447)
 -- Name: school_operating_day school_operating_day_school_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1072,7 +1078,7 @@ ALTER TABLE ONLY public.school_operating_day
 
 
 --
--- TOC entry 3567 (class 2606 OID 21163)
+-- TOC entry 3564 (class 2606 OID 21163)
 -- Name: slope_course slope_course_course_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1081,7 +1087,7 @@ ALTER TABLE ONLY public.slope_course
 
 
 --
--- TOC entry 3568 (class 2606 OID 21158)
+-- TOC entry 3565 (class 2606 OID 21158)
 -- Name: slope_course slope_course_slope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1090,7 +1096,7 @@ ALTER TABLE ONLY public.slope_course
 
 
 --
--- TOC entry 3569 (class 2606 OID 21178)
+-- TOC entry 3566 (class 2606 OID 21178)
 -- Name: slope_instructor slope_instructor_instructor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1099,7 +1105,7 @@ ALTER TABLE ONLY public.slope_instructor
 
 
 --
--- TOC entry 3570 (class 2606 OID 21173)
+-- TOC entry 3567 (class 2606 OID 21173)
 -- Name: slope_instructor slope_instructor_slope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1108,7 +1114,7 @@ ALTER TABLE ONLY public.slope_instructor
 
 
 --
--- TOC entry 3571 (class 2606 OID 21193)
+-- TOC entry 3568 (class 2606 OID 21193)
 -- Name: slope_operating_day slope_operating_day_operating_day_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1117,7 +1123,7 @@ ALTER TABLE ONLY public.slope_operating_day
 
 
 --
--- TOC entry 3572 (class 2606 OID 21188)
+-- TOC entry 3569 (class 2606 OID 21188)
 -- Name: slope_operating_day slope_operating_day_slope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1126,7 +1132,7 @@ ALTER TABLE ONLY public.slope_operating_day
 
 
 --
--- TOC entry 3564 (class 2606 OID 21457)
+-- TOC entry 3561 (class 2606 OID 21457)
 -- Name: slope slope_school_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1135,7 +1141,7 @@ ALTER TABLE ONLY public.slope
 
 
 --
--- TOC entry 3758 (class 0 OID 0)
+-- TOC entry 3756 (class 0 OID 0)
 -- Dependencies: 5
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: -
 --
@@ -1143,7 +1149,7 @@ ALTER TABLE ONLY public.slope
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 
 
--- Completed on 2024-11-29 05:13:13 MSK
+-- Completed on 2025-01-14 05:35:43 MSK
 
 --
 -- PostgreSQL database dump complete
