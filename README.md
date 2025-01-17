@@ -7,20 +7,17 @@ snowman_\*.sql - main database
 ```-- Получить все статусы инвойса как массив
 SELECT enum_range(NULL::invoice_status);
 -- Получить все статусы инвойса как набор строк
-SELECT unnest(enum_range(NULL::invoice_status));
+SELECT unnest(enum_range(NULL::invoice_status));```
 
-
--- Получить все уровни занятий как массив
+```-- Получить все уровни занятий как массив
 SELECT enum_range(NULL::ability_level);
 -- Получить все уровни занятий как набор строк
-SELECT unnest(enum_range(NULL::ability_level));
+SELECT unnest(enum_range(NULL::ability_level));```
 
-
--- Получить все типы курсов как массив
+```-- Получить все типы курсов как массив
 SELECT enum_range(NULL::course_type);
 -- Получить все виды курсов как набор строк
 SELECT unnest(enum_range(NULL::course_type));```
-
 
 3. Таблица с датами уже заполнена, но если потребуется заполнить таблицу с датами набором дат, вы можете выполнить хранимую процедуру, указав в качестве параметров начальную и конечную дату.
 
