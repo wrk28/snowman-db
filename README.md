@@ -1,24 +1,32 @@
 # snowman-db
 1. Database for Snowman project
-snowman_\*.sql - main database
+
+&emsp;&emsp; snowman_\*.sql - the file of the main database
 
 2. Чтобы получить значения типов данных как массив, либо как набор строк, можно применить следующие запросы. Вы можете применить полученный таким образом список при создании элементов интерфейса:
-
-```-- Получить все статусы инвойса как массив
+```
+-- Получить все статусы инвойса как массив
 SELECT enum_range(NULL::invoice_status);
+
 -- Получить все статусы инвойса как набор строк
-SELECT unnest(enum_range(NULL::invoice_status));```
-
-```-- Получить все уровни занятий как массив
+SELECT unnest(enum_range(NULL::invoice_status));
+```
+```
+-- Получить все уровни занятий как массив
 SELECT enum_range(NULL::ability_level);
--- Получить все уровни занятий как набор строк
-SELECT unnest(enum_range(NULL::ability_level));```
 
-```-- Получить все типы курсов как массив
+-- Получить все уровни занятий как набор строк
+SELECT unnest(enum_range(NULL::ability_level));
+```
+```
+-- Получить все типы курсов как массив
 SELECT enum_range(NULL::course_type);
+
 -- Получить все виды курсов как набор строк
-SELECT unnest(enum_range(NULL::course_type));```
+SELECT unnest(enum_range(NULL::course_type));
+```
 
 3. Таблица с датами уже заполнена, но если потребуется заполнить таблицу с датами набором дат, вы можете выполнить хранимую процедуру, указав в качестве параметров начальную и конечную дату.
-
-```call fillDates('2025-01-01', '2050-12-31');```
+```
+call fillDates('2025-01-01', '2050-12-31');
+```
